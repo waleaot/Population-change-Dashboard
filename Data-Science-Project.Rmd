@@ -1,0 +1,573 @@
+---
+title: "Principles of Data Science"
+author: "Oghenefejiro Jennifer Imene"
+date: "2023-11-30"
+output:
+  word_document: default
+  pdf_document: default
+student ID: "00693014"
+---
+
+
+```{r "loading the package"}
+#Load the appropriate libraries 
+library(readr)
+library(tidyverse)
+library(dplyr)
+library(ggplot2)
+library(psych)
+library(scales)
+library(ggthemes)
+library(flextable)
+library(xtable)
+library(gt)
+library(moments)
+library(xtable)
+library(corrplot)
+library(car)
+library(tseries)
+library(TTR)
+library(forecast)
+```
+
+
+
+## Reseach Objective:
+
+
+The objective of this research is to cross examine the changes in population 
+and life expectancy for top 12 richest countries in Europe
+
+Population is the total number of people or inhabitants in a country or region.
+
+```{r}
+
+#load in the data
+
+birth_data <- read.csv("Births.csv")
+Death_data <- read.csv("Deaths.csv")
+life_data  <- read.csv("Life expectancy.csv")
+Migration_data <- read.csv("Migration.csv")
+population_data <- read.csv("Total population.csv")
+
+
+```
+
+
+```{r}
+#rename the cols
+birth_data <- birth_data %>%  select  (-Variant) %>%  rename ( `number of birth` = Value)  
+
+Death_data <- Death_data  %>% select  (-Variant) %>%  rename ( `number of deaths` = Value)   
+
+life_data  <- life_data  %>% select  (-Variant) %>% rename (  `life expectancy` = Value)  
+
+Migration_data <- Migration_data %>% select  (-Variant) %>% rename(`number of Migration` = Value)  
+
+population_data <- population_data %>% select  (-Variant) %>%  rename (`Total population` = Value) 
+
+```
+
+
+
+
+```{r}
+#combining all the data sets into one variable
+
+data <- cbind(birth_data,Death_data, life_data,Migration_data,population_data)
+
+
+```
+
+
+```{r}
+
+#drop unwanted columns
+data <- data %>%  select(-4,-5,-7,-8,-10,-11,-13,-14)
+
+head(data)
+colnames(data)
+
+```
+
+
+```{r}
+#Describe the data
+describe(data)
+
+```
+
+```{r}
+#convert the country var into a factor
+
+data$Country <- as.factor(data$Country)
+
+```
+
+
+```{r}
+
+data_stats <-  data %>% select(-2) %>% pivot_longer(!Country, names_to = "Indicators", values_to  = "Rates")
+#make some conversions
+
+Indicator <- factor(data_stats$Indicators,
+               labels = c("Birthnumber", "Death number", "life expectancy number", "Migration number","total Population"))
+
+Rate <- data_stats$Rates
+
+
+`Average value` <- tapply( Rate,Indicator, mean)
+`Median Value` <- tapply( Rate,Indicator,median)
+ Mode <- tapply( Rate,Indicator,max)
+`Standard Deviation` <- tapply( Rate,Indicator,sd)
+`Skewness` <- tapply( Rate,Indicator,skewness)
+Kurtosis <- tapply( Rate,Indicator,kurtosis)
+
+#predictor_stats = rbind(Indicator_averages,Indicator_median,Indicator_mode ,Indicator_standard_deviation,Indicator_skewness,Indicator_kurtosis)
+predictor_stats = rbind(`Average value`,`Median Value`, Mode ,`Standard Deviation`,`Skewness`,Kurtosis)
+
+View(predictor_stats)
+#predictor_stats
+
+```
+
+
+```{r}
+#Descriptives visualizatons
+#Box plots (Inicators by Country)
+
+ggplot(data, aes(x = Country, y = `number of birth`, fill = Country))+ geom_boxplot()  +ggtitle(labs("Birth Rates boxplots by country"))
+
+ggplot(data, aes(x = Country, y = `number of deaths`, fill = Country))+ geom_boxplot()  +ggtitle(labs("Death Rates boxplots by country"))
+
+ggplot(data, aes(x = Country, y = `life expectancy`, fill = Country))+ geom_boxplot() + ggtitle(labs("Life expectancy values boxplots by country"))
+
+ggplot(data, aes(x = Country, y = `number of Migration`, fill = Country))+ geom_boxplot()  +ggtitle(labs("Migration Rates boxplots by country"))
+
+ggplot(data, aes(x = Country, y = `Total population`, fill = Country))+ geom_boxplot()  +ggtitle(labs("Population Rates boxplots by country"))
+
+
+
+```
+
+```{r}
+#trend of the indicators per country
+#birth rates
+
+ggplot(data=data, aes(x=Year, y=`number of birth`,color=Country,group=Country))  + geom_line(size=2, alpha=0.5, linetype=1) +
+ ylab("number of birth")  + theme(plot.title = element_text(hjust = 0.5)) + ggtitle("Trend of birth numbers in top 12 richest countries in Europe")
+
+#death rates
+ggplot(data=data, aes(x=Year, y=`number of deaths`,color=Country,group=Country))  + geom_line(size=2, alpha=0.5, linetype=1) +
+ ylab("number of deaths")  + theme(plot.title = element_text(hjust = 0.5)) + ggtitle("Trend of death numbers in top 12 richest countries in Europe")
+
+#fertility rates
+ggplot(data=data, aes(x=Year, y=`life expectancy`,color=Country,group=Country))  + geom_line(size=2, alpha=0.5, linetype=1) +
+ ylab("life expectancy")  + theme(plot.title = element_text(hjust = 0.5)) + ggtitle("Trend of life expectancy in top 12 richest countries in Europe")
+
+#migration rates
+ggplot(data=data, aes(x=Year, y=`number of Migration`,color=Country,group=Country))  + geom_line(size=2, alpha=0.5, linetype=1) +
+ ylab("number of Migration")  + theme(plot.title = element_text(hjust = 0.5)) + ggtitle("Trend of migration numbers in top 12 richest countries in Europe")
+
+#population rates
+ggplot(data=data, aes(x=Year, y=`Total population`,color=Country,group=Country))  + geom_line(size=2, alpha=0.5, linetype=1) +
+ ylab("Total population")  + theme(plot.title = element_text(hjust = 0.5)) + ggtitle("Trend of Total population in top 12 richest countries in Europe")
+
+```
+
+
+```{r}
+#Descriptive stats
+#Compute averages of the indicators by country
+
+#Average birth number
+
+Average_Birth_number <-  data %>% 
+               group_by(Country) %>%
+                summarise( average_birth_number = mean(`number of birth`))
+
+
+ 
+
+
+#Average death number
+
+Average_Death_number <-  data %>% 
+               group_by(Country) %>%
+                summarise( average_death_number = mean(`number of deaths`))
+
+ 
+#Average migration number
+
+Average_Mig_number <-  data %>% 
+               group_by(Country) %>%
+                summarise( average_migration_number = mean(`number of Migration`))
+
+  
+ 
+#Average fertility rate
+
+Average_life_expectancy <-  data %>% 
+               group_by(Country) %>%
+                summarise( average_life_expectancy = mean(`life expectancy`))
+
+ 
+
+
+#Average change in population rate
+  
+Average_Pop_number <-  data %>% 
+               group_by(Country) %>%
+                summarise( average_population_number = mean(`Total population`))
+
+
+# ggplot(data = avg_birth_rate, aes(x = reorder(Country,average_birth_rate), y  = average_birth_rate, fill = Country)) + geom_bar(stat = "identity")
+```
+
+
+```{r}
+#Consolidate the average rates of indicators into a table
+#drop the repeated columns
+
+figures <- cbind(Average_Birth_number,Average_Death_number,Average_life_expectancy,Average_Mig_number,Average_Pop_number) %>% 
+#drop the repeated columns
+  
+  select (-3,-5,-7,-9)
+
+#The Rates table
+table1 <- figures %>%
+  gt() %>%
+  tab_header(title = "Average numbers of indicators per country") 
+
+table1
+
+```
+
+
+```{r}
+#Visualize the average rates of all indicators across countries
+#first restructure the data
+
+figures_reshape <- figures %>%
+       pivot_longer(!Country, names_to = "Indicators", values_to  = "Values")
+
+head(figures_reshape)
+tail(figures_reshape)
+```
+
+
+
+
+##Hypothesis Testing
+
+We shall be using hypothesis testing of means to determine if there is a significant difference in the average number of population  in two of countries from the data set. 
+
+The countries of interests are France are Italy, as they have almost the same average population over the last 12 years.
+
+First, we have to extract the data, then check to confirm the data follows a normal distribution
+
+```{r}
+
+data_xtraction <- function(df,countryname){
+    df %>% filter( Country == countryname)
+}
+
+France <- data_xtraction(data,"France")
+
+Italy <- data_xtraction(data,"Italy")
+
+```
+
+
+```{r}
+#normality test
+
+shapiro.test(France$`Total population`)
+shapiro.test(Italy$`Total population`)
+
+```
+Interpretation:
+
+Since the p-values for both test (0.2463, 0.1594) are both greater than 0.05, we have statistical reasons to conclude the data set follows a normal distribution. 
+
+```{r}
+#Hypothesis one  (forFrance)
+France_average_pop <-mean(France$`Total population`)
+Italy_average_pop <- mean(Italy$`Total population`)
+
+#Set the hypothesis
+```
+
+Ho: France average population rate = 63805.68
+H1: France average population != 63805.68
+
+Ho: Italy average population rate = 59877.94
+H1: Italy average population != 59877.94
+
+```{r}
+#The Tests
+
+France_outcome <- t.test(France$`Total population`, mu = 63805.68)
+Italy_outcome <- t.test(Italy$`Total population`, mu = 59877.94)
+France_outcome
+Italy_outcome
+
+```
+
+##Correlation Test for the predictors
+
+Correlation measures the linear association between two variables.
+Before correlation test is performed, the data set must meet some certain criteria. They are:
+
+1. Level of Measurement: The two variables should be measured at the interval or ratio level.
+
+2. Linear Relationship: There should exist a linear relationship between the two variables.
+
+3. Normality: Both variables should be roughly normally distributed.
+
+4. Related Pairs: Each observation in the dataset should have a pair of values.
+
+5. No Outlines: There should be no extreme outliers in the dataset.
+
+
+
+
+We shall be lookng at the relationship between the 5 indicators
+
+```{r}
+
+#correlation
+#get the correlation of the indicators
+
+cor_data <- data %>% select (3,4,5,6,7)
+
+corrplot(cor(cor_data), method = "number", type = "upper")
+
+```
+
+##Fit a regression Model
+ We would be fixing two regression model for 2 out of the 12 countries in terms of their total population. The 2 countries are: Norway and Switzerland.
+ The reason these countries were chosen, is because they are the countries with the least population numbers. 
+ 
+## The objective of the regression model:
+To get a model that can forecast the population number for the next few years 
+
+```{r}
+
+#extract the data 
+
+norway <- data_xtraction(data,"Norway")
+  
+switzerland <- data_xtraction(data,"Switzerland")
+
+```
+
+
+
+```{r}
+
+#Get the correlation plots
+
+norway <- norway %>% select (-1,-2)
+switzerland <- switzerland %>% select (-1,-2)
+
+corrplot(cor(norway), method = "number", type = "upper", main = "Correlation plot for norway")
+corrplot(cor(switzerland), method = "number", type = "upper", main= "Correlation plot forswitzerland")
+
+```
+
+
+```{r}
+
+#Get the model
+norway_model <- lm(formula = `Total population` ~ `number of birth` + `number of deaths` + `number of Migration` , data = norway)
+
+switzerland_model <- lm(formula = `Total population` ~ `number of birth` + `number of deaths` + `number of Migration` , data = switzerland)
+
+summary(norway_model)
+summary(switzerland_model)
+
+```
+
+
+###Interpretation
+
+A look at two models revealed that all coefficients are statistically significant at 0.05 level, except for number of deaths and number of Migration
+in the case of norway which is not significant. 
+
+The equation for Norway will be :
+
+Population Rate = 8752.784  -50.310 x number of births  
+
+
+The equation for switzerland will be :
+
+Population Rate = 2323.145 + 57.083  x number of births  22.039 x number of deaths -4.943 x number of Migration
+
+
+Adjusted R^^2 is a corrected goodness-of-fit (model accuracy) measure for linear models. It identifies the percentage of variance in the response variable (Population rate) that is explained by the Independent variables. 
+
+R^^2 are 1 in both models. This value indicates that the models are a good fit and they have higher prediction power. 
+
+
+
+###Check if model meets assumptions
+
+1. Linearity Check
+
+```{r}
+##Ensure the model fits the model
+# linearity test
+# scatter plot
+
+norway_df <- norway
+
+attach(norway_df)
+pairs(~ `Total population` + `number of birth` + `number of deaths` + `number of Migration` ,  main= "scatter plot for Norway",lower.panel = NULL,  col= c('red','green'))
+
+
+switzerland_df <- switzerland
+
+
+attach(switzerland_df)
+pairs(~`Total population` + `number of birth` + `number of deaths` + `number of Migration` , main= "scatter plot for Switzerland",lower.panel = NULL,  col= c('red','green'))
+
+```
+
+
+2. Residuals’ Independence
+```{r}
+
+plot(norway_model, 1)
+plot(switzerland_model, 1)
+
+
+```
+
+
+3. Normality of residuals
+
+```{r}
+
+plot(norway_model, 2)
+plot(switzerland_model, 2)
+
+```
+
+4. Equal variances of the residuals (Homoscedasticity)
+
+```{r}
+plot(norway_model, 3)
+plot(switzerland_model, 3)
+```
+
+
+5. No multicollinearity
+```{r}
+vif(norway_model)
+vif(switzerland_model)
+```
+Remove the variables highly correlated in the norway_model  
+
+
+
+## Time series Analysis
+For the time series analysis, we shall be using the same countries we used for the regression models- Norway & Switzerland
+
+
+```{r}
+#build the ts data
+
+norway_ts_d <- norway$`Total population`
+swit_ts_d  <- switzerland$`Total population`
+
+norway_ts <- ts(norway_ts_d, frequency = 1 , start  = c(2011,1))
+swit_ts <- ts(swit_ts_d,frequency  =1, start = c(2011,1))
+```
+
+
+```{r}
+#timeseries plot
+plot.ts(norway_ts,col = "red")
+plot.ts(swit_ts,col = "blue")
+
+```
+
+
+```{r}
+#test for data stationarity
+
+adf.test(norway_ts)
+adf.test(swit_ts)
+
+```
+The p-value for both test are greater than 0.05, we fail to reject the null hypothesis.
+
+This means the time series is non-stationary. 
+
+Next is to make the time series data by differencing it.
+
+```{r}
+#difference the series
+
+df_norway_ts <- diff(norway_ts, difference = 2)
+df_swit_ts <- diff(swit_ts, differences = 1)
+plot(df_norway_ts)
+plot(df_swit_ts)
+  
+```
+
+
+If your time series is stationary, or if you have transformed it to a stationary time series by differencing d times, the next step is to select the appropriate ARIMA model, which means finding the values of most appropriate values of p and q for an ARIMA(p,d,q) model. To do this, you usually need to examine the correlogram and partial correlogram of the stationary time series.
+
+```{r}
+acf(df_norway_ts, lag.max=20)
+pacf(df_norway_ts, lag.max=20)
+acf(df_swit_ts, lag.max=20)
+pacf(df_swit_ts, lag.max=20)
+```
+
+
+
+
+```{r}
+#plot the models ( For norway)
+norway_arima <- arima(norway_ts, order=c(1,2,0))
+norway_arima
+norway_arima_forecast <- forecast(norway_arima, h=5)
+
+
+switz_arima <- arima(swit_ts, order=c(1,0,1))
+switz_arima
+switz_arima_forecast <- forecast(switz_arima, h=5)
+```
+
+
+```{r}
+#The forecasts
+ norway_arima_forecast
+switz_arima_forecast
+
+plot(norway_arima_forecast)
+plot(switz_arima_forecast)
+```
+
+
+```{r}
+#residuals check
+
+acf(norway_arima_forecast$residuals)
+Box.test(norway_arima_forecast$residuals, type="Ljung-Box")
+
+acf(switz_arima_forecast$residuals)
+Box.test(switz_arima_forecast$residuals, type="Ljung-Box")
+
+```
+
+
+
+
+
+
+```
+
